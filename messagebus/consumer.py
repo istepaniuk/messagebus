@@ -10,6 +10,7 @@ class Consumer:
 
         def subscribe(self, message, callback):
             self.callback = callback
+            self._subscription_pattern = message
             self._queue_name = self._get_queue_name()
             params = pika.ConnectionParameters(host=self.HOST)
             connection = pika.SelectConnection(params, self._on_connected)
@@ -17,7 +18,7 @@ class Consumer:
 
         def _get_queue_name(self):
             #TODO: queues should be exclusive once dead lettering is in place
-            return "%s-%s" % (socket.gethostname(), "0")
+            return "%s-%s" % (socket.gethostname(), self._subscription_pattern)
 
         def _on_connected(self, connection):
             connection.channel(self._on_channel_opened)
@@ -31,7 +32,8 @@ class Consumer:
                 exclusive=False, auto_delete=False, callback=self._on_queue_declared)
 
         def _on_queue_declared(self, frame):
-            self.channel.queue_bind(self._on_bind_ok, self._queue_name, self.EXCHANGE,'#')
+            self.channel.queue_bind(self._on_bind_ok, self._queue_name,
+                self.EXCHANGE, self._subscription_pattern)
 
         def _on_bind_ok(self, unused_frame):
             self.channel.basic_consume(self._handle_delivery,
