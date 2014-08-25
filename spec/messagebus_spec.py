@@ -27,7 +27,7 @@ with description('messagebus'):
         thread.daemon = True
         thread.start()
 
-        MessageBus.publish('test.some_other_test_message')
+        MessageBus.publish('test.some_other_different_test_message')
 
         sleep(MSG_TIMEOUT)
         expect(status["received"]).to(be_false)

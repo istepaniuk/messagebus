@@ -6,13 +6,15 @@ import inspect
 
 class Consumer:
         EXCHANGE = 'tcr'
-        HOST = 'localhost'
+
+        def __init__(self, host):
+            self.host = host
 
         def subscribe(self, message, callback):
             self.callback = callback
             self._subscription_pattern = message
             self._queue_name = self._get_queue_name()
-            params = pika.ConnectionParameters(host=self.HOST)
+            params = pika.ConnectionParameters(host=self.host)
             connection = pika.SelectConnection(params, self._on_connected)
             connection.ioloop.start()
 

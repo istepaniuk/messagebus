@@ -6,6 +6,7 @@ import inspect
 from messagebus.consumer import Consumer
 
 class MessageBus:
+    DEFAULT_HOST = 'localhost'
 
     @classmethod
     def publish(cls, message, payload=""):
@@ -14,11 +15,11 @@ class MessageBus:
             body = json.dumps(payload)
         if type(payload) is str:
             body = payload
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host=cls.DEFAULT_HOST))
         channel = connection.channel()
         channel.basic_publish(exchange='tcr',routing_key=message, body=body)
         connection.close()
 
     @classmethod
     def subscribe(cls, message, callback):
-        Consumer().subscribe(message, callback)
+        Consumer(cls.DEFAULT_HOST).subscribe(message, callback)
