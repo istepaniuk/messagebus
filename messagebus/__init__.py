@@ -12,7 +12,7 @@ class MessageBus:
     def publish(cls, message, payload=""):
         body = ''
         if type(payload) is dict:
-            body = json.dumps(payload)
+            body = json.dumps(payload, ensure_ascii=False)
         if type(payload) is str:
             body = payload
         connection = pika.BlockingConnection(pika.ConnectionParameters(host=cls.DEFAULT_HOST))

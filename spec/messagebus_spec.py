@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from messagebus import MessageBus
 from expects import *
 from threading import Thread
@@ -32,3 +35,16 @@ with description('messagebus'):
         sleep(MSG_TIMEOUT)
         expect(status["received"]).to(be_false)
 
+    with it('transmits the payload along the message'):
+        received = {}
+        def callback(message): received.update(message)
+        def subscribe(): MessageBus.subscribe('test.message_with_payload', callback)
+        thread = Thread(target = subscribe)
+        thread.daemon = True
+        thread.start()
+
+        MessageBus.publish('test.message_with_payload', {'id': 4, 'name': u'John Döe'})
+
+        sleep(MSG_TIMEOUT)
+        expect(received).to(have_key('id', 4))
+        expect(received).to(have_key('name', u'John Döe'))

@@ -46,7 +46,7 @@ class Consumer:
                 self.callback()
                 return
             try:
-                payload = json.loads(body)
+                payload = json.loads(body, encoding="utf8")
             except ValueError:
                 payload = body
             self.callback(payload)
