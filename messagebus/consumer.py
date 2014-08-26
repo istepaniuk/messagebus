@@ -3,18 +3,19 @@ import json
 import os
 import socket
 import inspect
+import settings
 
 class Consumer:
-        EXCHANGE = 'tcr'
+        EXCHANGE = settings.RABBIT_DEAFULT_EXCHANGE
 
-        def __init__(self, host):
-            self.host = host
+        def __init__(self, broker_url):
+            self.broker_url = broker_url
 
         def subscribe(self, message, callback):
             self.callback = callback
             self._subscription_pattern = message
             self._queue_name = self._get_queue_name()
-            params = pika.ConnectionParameters(host=self.host)
+            params = pika.URLParameters(self.broker_url)
             connection = pika.SelectConnection(params, self._on_connected)
             connection.ioloop.start()
 
