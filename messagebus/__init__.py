@@ -3,7 +3,11 @@ import json
 import os
 import socket
 import inspect
-from consumer import Consumer
+try:
+    from consumer import Consumer
+except ImportError:
+    from messagebus.consumer import Consumer
+
 import settings
 
 class MessageBus:
