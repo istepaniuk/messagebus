@@ -3,7 +3,7 @@ import json
 import os
 import socket
 import inspect
-from messagebus.consumer import Consumer
+from consumer import Consumer
 import settings
 
 class MessageBus:
