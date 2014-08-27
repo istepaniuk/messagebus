@@ -23,6 +23,9 @@ class Consumer:
         def _on_connection_closed(self, a,b,c):
             raise Exception("Connection lost")
 
+        def _on_channel_closed(self, channel, reply_code, reply_text):
+            raise IOError("Channel closed (%s) %s" % (reply_code, reply_text))
+
         def _get_queue_name(self):
             #TODO: queues should be exclusive once dead lettering is in place
             return "%s-%s" % (socket.gethostname(), self._subscription_pattern)
@@ -32,6 +35,7 @@ class Consumer:
 
         def _on_channel_opened(self, new_channel):
             self.channel = new_channel
+            self.channel.add_on_close_callback(self._on_channel_closed)
             self.channel.exchange_declare(self._on_exchange_declared, self.EXCHANGE, 'topic')
 
         def _on_exchange_declared(self, unused_frame):
