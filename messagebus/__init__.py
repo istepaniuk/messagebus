@@ -20,7 +20,7 @@ class MessageBus:
             body = payload
         connection = pika.BlockingConnection(pika.URLParameters(settings.RABBITMQ_BROKER_URL))
         channel = connection.channel()
-        channel.basic_publish(exchange=settings.RABBIT_DEAFULT_EXCHANGE, routing_key=message, body=body)
+        channel.basic_publish(exchange=settings.RABBIT_DEFAULT_EXCHANGE, routing_key=message, body=body)
         connection.close()
 
     @classmethod

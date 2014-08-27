@@ -3,4 +3,4 @@ try:
 except ImportError:
     pass
 
-RABBIT_DEAFULT_EXCHANGE = 'tcr'
+RABBIT_DEFAULT_EXCHANGE = 'tcr'

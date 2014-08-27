@@ -6,7 +6,7 @@ import inspect
 import settings
 
 class Consumer:
-        EXCHANGE = settings.RABBIT_DEAFULT_EXCHANGE
+        EXCHANGE = settings.RABBIT_DEFAULT_EXCHANGE
 
         def __init__(self, broker_url):
             self.broker_url = broker_url
