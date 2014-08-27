@@ -17,7 +17,11 @@ class Consumer:
             self._queue_name = self._get_queue_name()
             params = pika.URLParameters(self.broker_url)
             connection = pika.SelectConnection(params, self._on_connected)
+            connection.add_on_close_callback(self._on_connection_closed)
             connection.ioloop.start()
+
+        def _on_connection_closed(self, a,b,c):
+            raise Exception("Connection lost")
 
         def _get_queue_name(self):
             #TODO: queues should be exclusive once dead lettering is in place
