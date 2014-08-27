@@ -1,5 +1,3 @@
-from django.conf import settings
-
 import pika
 import json
 import os
@@ -12,18 +10,26 @@ except ImportError:
 
 
 class MessageBus:
-    @classmethod
-    def publish(cls, message, payload=""):
+    RABBITMQ_DEFAULT_EXCHANGE = 'tcr'
+
+    def __init__(self, broker_url='amqp://localhost'):
+        self.broker_url = broker_url
+        self.consumer = Consumer(self.broker_url)
+
+    def publish(self, message, payload=''):
         body = ''
         if type(payload) is dict:
             body = json.dumps(payload, ensure_ascii=False)
         if type(payload) is str:
             body = payload
-        connection = pika.BlockingConnection(pika.URLParameters(settings.RABBITMQ_BROKER_URL))
+        connection = pika.BlockingConnection(pika.URLParameters(self.broker_url))
         channel = connection.channel()
-        channel.basic_publish(exchange=settings.RABBITMQ_DEFAULT_EXCHANGE, routing_key=message, body=body)
+        channel.basic_publish(exchange=self.RABBITMQ_DEFAULT_EXCHANGE, routing_key=message, body=body)
         connection.close()
 
-    @classmethod
-    def subscribe(cls, message, callback):
-        Consumer(settings.RABBITMQ_BROKER_URL).subscribe(message, callback)
+    def subscribe(self, message, callback):
+        self.consumer.subscribe(message, callback)
+
+    def start(self):
+        self.consumer.start()
+
