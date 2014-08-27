@@ -1,12 +1,14 @@
+from django.conf import settings
+
 import pika
 import json
 import os
 import socket
 import inspect
-import settings
+
 
 class Consumer:
-        EXCHANGE = settings.RABBIT_DEFAULT_EXCHANGE
+        EXCHANGE = settings.RABBITMQ_DEFAULT_EXCHANGE
 
         def __init__(self, broker_url):
             self.broker_url = broker_url

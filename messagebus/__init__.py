@@ -1,3 +1,5 @@
+from django.conf import settings
+
 import pika
 import json
 import os
@@ -8,7 +10,6 @@ try:
 except ImportError:
     from messagebus.consumer import Consumer
 
-import settings
 
 class MessageBus:
     @classmethod
@@ -20,7 +21,7 @@ class MessageBus:
             body = payload
         connection = pika.BlockingConnection(pika.URLParameters(settings.RABBITMQ_BROKER_URL))
         channel = connection.channel()
-        channel.basic_publish(exchange=settings.RABBIT_DEFAULT_EXCHANGE, routing_key=message, body=body)
+        channel.basic_publish(exchange=settings.RABBITMQ_DEFAULT_EXCHANGE, routing_key=message, body=body)
         connection.close()
 
     @classmethod
