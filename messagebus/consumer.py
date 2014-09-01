@@ -64,9 +64,6 @@ class Consumer:
     def _handle_delivery(self, channel, method, header, body):
         routing_key = method.routing_key
         callback = self.subscriptions[routing_key]
-        if len(inspect.getargspec(callback).args) == 0:
-            callback()
-            return
         try:
             payload = json.loads(body, encoding="utf8")
         except ValueError:
