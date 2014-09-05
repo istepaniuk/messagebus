@@ -37,7 +37,7 @@ class Consumer:
     def _on_channel_opened(self, new_channel):
         self.channel = new_channel
         self.channel.add_on_close_callback(self._on_channel_closed)
-        self.channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic')
+        self.channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic', durable=True)
 
     def _on_exchange_declared(self, unused_frame):
         for pattern in self.subscriptions.keys():
