@@ -2,7 +2,6 @@ import pika
 import json
 import os
 import socket
-import inspect
 
 class Consumer:
     def __init__(self, broker_url):
@@ -59,7 +58,7 @@ class Consumer:
         if self.bound_count == len(self.subscriptions):
             for queue_name in self.patterns.keys():
                 self.channel.basic_consume(self._handle_delivery,
-                    queue=queue_name, no_ack=True)
+                    queue=queue_name, no_ack=False)
 
     def _handle_delivery(self, channel, method, header, body):
         routing_key = method.routing_key
@@ -68,4 +67,8 @@ class Consumer:
             payload = json.loads(body, encoding="utf8")
         except ValueError:
             payload = body
-        callback(payload)
+        try:
+            callback(payload)
+            channel.basic_ack(method.delivery_tag)
+        except:
+            pass
