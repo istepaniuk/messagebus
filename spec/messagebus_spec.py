@@ -14,7 +14,7 @@ with description('messagebus'):
 
     with it('can send and receive a message'):
         status = {"received": False }
-        def callback(): status["received"] = True
+        def callback(x): status["received"] = True
         self.bus.subscribe('test.message', callback)
         def start(): self.bus.start()
         thread = Thread(target = start)
@@ -28,7 +28,7 @@ with description('messagebus'):
 
     with it('does not receive a message if not subscribed to it'):
         status = {"received": False }
-        def callback(): status["received"] = True
+        def callback(x): status["received"] = True
         self.bus.subscribe('test.some_test_message', callback)
         def start(): self.bus.start()
         thread = Thread(target = start)
