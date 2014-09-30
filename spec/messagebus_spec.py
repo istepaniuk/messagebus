@@ -73,3 +73,25 @@ with description('messagebus'):
         sleep(MSG_TIMEOUT)
         expect(received1).to(have_key('id', 5))
         expect(received2).to(have_key('id', 8))
+
+    with it('retries to process a message if an exception is thrown'):
+        received = {"count": 0}
+        def callback(message):
+            tried = received["count"] = received["count"] + 1
+            if tried == 1:
+                raise Exception('test_exception')
+        self.bus.subscribe('test.message3', callback)
+        def start():
+            try:
+                self.bus.start()
+            except Exception as e:
+                if e.message != 'test_exception':
+                    raise
+        thread = Thread(target = start)
+        thread.daemon = True
+        thread.start()
+
+        self.bus.publish('test.message3', {})
+
+        sleep(MSG_TIMEOUT * 2)
+        expect(received["count"]).to(be(2))
