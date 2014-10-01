@@ -7,7 +7,7 @@ from threading import Thread
 from time import sleep
 import uuid
 
-MSG_TIMEOUT = 0.040
+MSG_TIMEOUT = 0.045
 
 with description('messagebus'):
     with before.each:
@@ -75,15 +75,14 @@ with description('messagebus'):
         expect(received1).to(have_key('id', 5))
         expect(received2).to(have_key('id', 8))
 
-    with it('retries to process a message if an exception is thrown'):
+    with it('retries to process a message twice if an exception is thrown'):
         instance = str(uuid.uuid1())
-        received = {"count": 0}
+        received = { "count": 0 }
         def callback(message):
             if instance != message["instance"]:
                 return
-            tried = received["count"] = received["count"] + 1
-            if tried == 1:
-                raise Exception('test_exception')
+            received["count"] = received["count"] + 1
+            raise Exception('test_exception')
         def start():
             while(True):
                 try:

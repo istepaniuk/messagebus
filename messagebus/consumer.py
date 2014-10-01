@@ -35,14 +35,24 @@ class Consumer:
 
     def _on_channel_opened(self, new_channel):
         self.channel = new_channel
-        self.channel.basic_qos(prefetch_size=0, prefetch_count=0)
+        self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
         self.channel.add_on_close_callback(self._on_channel_closed)
+        self.channel.exchange_declare(self._on_dlx_declared, 'tcr.dead-letter', 'fanout', durable=True)
         self.channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic', durable=True)
+
+    def _on_dlx_declared(self, unused_frame):
+        self.channel.queue_declare(queue='dead-letter', durable=True,
+            exclusive = False, auto_delete = False, callback=self._on_dlq_declared)
+
+    def _on_dlq_declared(self, frame):
+        self.channel.queue_bind(lambda x: x, queue = 'dead-letter',
+            exchange = 'tcr.dead-letter' ,routing_key = '')
 
     def _on_exchange_declared(self, unused_frame):
         for pattern in self.subscriptions.keys():
             queue_name = self._get_queue_name(pattern)
-            self.channel.queue_declare(queue=queue_name, durable=True,
+            arguments = { 'x-dead-letter-exchange' : 'tcr.dead-letter' }
+            self.channel.queue_declare(queue=queue_name, durable=True, arguments = arguments,
                 exclusive=False, auto_delete=False, callback=self._on_queue_declared)
 
     def _get_queue_name(self, subscription_pattern):
@@ -73,9 +83,9 @@ class Consumer:
             channel.basic_ack(method.delivery_tag)
         except Exception as e:
             if method.redelivered:
-                channel.basic_nack(method.delivery_tag, requeue=False)
-                print "Warning: an error ocurred while processing the message for a second time."
+                channel.basic_nack(delivery_tag = method.delivery_tag, requeue = False)
+                #print "Warning: an error ocurred while processing the message for a second time. Message rejected."
             else:
-                channel.basic_nack(delivery_tag=method.delivery_tag,requeue=True)
+                channel.basic_nack(delivery_tag = method.delivery_tag, requeue = True)
             self.connection.close()
             raise
