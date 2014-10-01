@@ -20,9 +20,9 @@ class Consumer:
         if len(self.subscriptions) == 0:
             pass
         params = pika.URLParameters(self.broker_url)
-        connection = pika.SelectConnection(params, self._on_connected)
-        connection.add_on_close_callback(self._on_connection_closed)
-        connection.ioloop.start()
+        self.connection = pika.SelectConnection(params, self._on_connected)
+        self.connection.add_on_close_callback(self._on_connection_closed)
+        self.connection.ioloop.start()
 
     def _on_connection_closed(self, a, b, c):
         raise Exception("Connection lost")
@@ -35,6 +35,7 @@ class Consumer:
 
     def _on_channel_opened(self, new_channel):
         self.channel = new_channel
+        self.channel.basic_qos(prefetch_size=0, prefetch_count=0)
         self.channel.add_on_close_callback(self._on_channel_closed)
         self.channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic', durable=True)
 
@@ -70,5 +71,11 @@ class Consumer:
         try:
             callback(payload)
             channel.basic_ack(method.delivery_tag)
-        except:
-            pass
+        except Exception as e:
+            if method.redelivered:
+                channel.basic_nack(method.delivery_tag, requeue=False)
+                print "Warning: an error ocurred while processing the message for a second time."
+            else:
+                channel.basic_nack(delivery_tag=method.delivery_tag,requeue=True)
+            self.connection.close()
+            raise
