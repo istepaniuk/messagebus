@@ -4,7 +4,8 @@ import os
 import socket
 
 class Consumer:
-    def __init__(self, broker_url):
+    def __init__(self, broker_url, queue_prefix=None):
+        self.queue_prefix = queue_prefix
         self.exchange = 'tcr'
         self.broker_url = broker_url
         self.subscriptions = {}
@@ -56,8 +57,9 @@ class Consumer:
                 exclusive=False, auto_delete=False, callback=self._on_queue_declared)
 
     def _get_queue_name(self, subscription_pattern):
-        #TODO: queues should be exclusive once dead lettering is in place
-        return "%s-%s" % (socket.gethostname(), subscription_pattern)
+        if self.queue_prefix is None:
+            self.queue_prefix = socket.gethostname()
+        return "%s-%s" % (self.queue_prefix, subscription_pattern)
 
     def _on_queue_declared(self, frame):
         queue_name = frame.method.queue

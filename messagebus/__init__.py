@@ -12,9 +12,9 @@ except ImportError:
 class MessageBus:
     RABBITMQ_DEFAULT_EXCHANGE = 'tcr'
 
-    def __init__(self, broker_url='amqp://localhost'):
+    def __init__(self, broker_url='amqp://localhost', queue_prefix=None):
         self.broker_url = broker_url
-        self.consumer = Consumer(self.broker_url)
+        self.consumer = Consumer(self.broker_url, queue_prefix)
 
     def publish(self, message, payload=''):
         body = ''
