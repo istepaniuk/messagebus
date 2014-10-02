@@ -11,7 +11,7 @@ MSG_TIMEOUT = 0.045
 
 with description('messagebus'):
     with before.each:
-        self.bus = MessageBus()
+        self.bus = MessageBus(queue_prefix = 'testing')
 
     with it('can send and receive a message'):
         status = {"received": False }
