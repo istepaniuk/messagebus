@@ -2,6 +2,7 @@ import pika
 import json
 import os
 import socket
+import inspect
 
 class Consumer:
     def __init__(self, broker_url, queue_prefix=None):
@@ -81,7 +82,11 @@ class Consumer:
         except ValueError:
             payload = body
         try:
-            callback(payload)
+            callback_spec = inspect.getargspec(callback)
+            if callback_spec.keywords != None:
+                callback(payload, routing_key = routing_key)
+            else:
+                callback(payload)
             channel.basic_ack(method.delivery_tag)
         except Exception as e:
             if method.redelivered:
