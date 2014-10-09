@@ -27,6 +27,21 @@ with description('messagebus'):
         sleep(MSG_TIMEOUT)
         expect(status["received"]).to(be_true)
 
+    with it('can passes the routing key to the callback'):
+        status = {"routing_key": None }
+        def callback(message, **kwargs):
+            status["routing_key"] = kwargs['routing_key']
+        self.bus.subscribe('test.message4', callback)
+        def start(): self.bus.start()
+        thread = Thread(target = start)
+        thread.daemon = True
+        thread.start()
+
+        self.bus.publish('test.message4')
+
+        sleep(MSG_TIMEOUT)
+        expect(status["routing_key"]).to(equal('test.message4'))
+
     with it('does not receive a message if not subscribed to it'):
         status = {"received": False }
         def callback(x): status["received"] = True
