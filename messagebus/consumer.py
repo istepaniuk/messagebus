@@ -9,17 +9,19 @@ class Consumer:
         self.queue_prefix = queue_prefix
         self.exchange = 'tcr'
         self.broker_url = broker_url
-        self.subscriptions = {}
-        self.patterns = {}
-        self.bound_count = 0
+        self._subscriptions = []
+        self._bound_count = 0
 
-    def subscribe(self, message, callback):
-        self.subscriptions[message] = callback
-        queue_name = self._get_queue_name(message)
-        self.patterns[queue_name] = message
+    def subscribe(self, pattern, callback):
+        queue_name = self._get_queue_name(pattern)
+        self._subscriptions.append({
+            "callback": callback,
+            "queue_name": queue_name,
+            "pattern": pattern
+        })
 
     def start(self):
-        if len(self.subscriptions) == 0:
+        if len(self._subscriptions) == 0:
             pass
         params = pika.URLParameters(self.broker_url)
         self.connection = pika.SelectConnection(params, self._on_connected)
@@ -51,11 +53,14 @@ class Consumer:
             exchange = 'tcr.dead-letter' ,routing_key = '')
 
     def _on_exchange_declared(self, unused_frame):
-        for pattern in self.subscriptions.keys():
-            queue_name = self._get_queue_name(pattern)
+        for subscription in self._subscriptions:
             arguments = { 'x-dead-letter-exchange' : 'tcr.dead-letter' }
-            self.channel.queue_declare(queue=queue_name, durable=True, arguments = arguments,
-                exclusive=False, auto_delete=False, callback=self._on_queue_declared)
+            self.channel.queue_declare(queue=subscription["queue_name"],
+                durable=True,
+                arguments = arguments,
+                exclusive=False,
+                auto_delete=False,
+                callback=self._on_queue_declared)
 
     def _get_queue_name(self, subscription_pattern):
         if self.queue_prefix is None:
@@ -64,35 +69,44 @@ class Consumer:
 
     def _on_queue_declared(self, frame):
         queue_name = frame.method.queue
+        subscription = self._get_subscription_by_queue_name(queue_name)
         self.channel.queue_bind(self._on_bind_ok, queue_name,
-            self.exchange, self.patterns[queue_name])
+            self.exchange, subscription['pattern'])
+
+    def _get_subscription_by_queue_name(self, queue_name):
+        for subscription in self._subscriptions:
+            if subscription['queue_name'] == queue_name:
+                return subscription
+        return None
 
     def _on_bind_ok(self, frame):
-        self.bound_count = self.bound_count + 1
-        if self.bound_count == len(self.subscriptions):
-            for queue_name in self.patterns.keys():
-                self.channel.basic_consume(self._handle_delivery,
-                    queue=queue_name, no_ack=False)
+        self._bound_count = self._bound_count + 1
+        if self._bound_count == len(self._subscriptions):
+            for subscription in self._subscriptions:
+                self.channel.basic_consume(self._get_handle_delivery_callback(subscription),
+                    queue = subscription['queue_name'], no_ack=False)
 
-    def _handle_delivery(self, channel, method, header, body):
-        routing_key = method.routing_key
-        callback = self.subscriptions[routing_key]
-        try:
-            payload = json.loads(body, encoding="utf8")
-        except ValueError:
-            payload = body
-        try:
-            callback_spec = inspect.getargspec(callback)
-            if callback_spec.keywords != None:
-                callback(payload, routing_key = routing_key)
-            else:
-                callback(payload)
-            channel.basic_ack(method.delivery_tag)
-        except Exception as e:
-            if method.redelivered:
-                channel.basic_nack(delivery_tag = method.delivery_tag, requeue = False)
-                #print "Warning: an error ocurred while processing the message for a second time. Message rejected."
-            else:
-                channel.basic_nack(delivery_tag = method.delivery_tag, requeue = True)
-            self.connection.close()
-            raise
+    def _get_handle_delivery_callback(self, subscription):
+        def handle_delivery(channel, method, header, body):
+            routing_key = method.routing_key
+            callback = subscription["callback"]
+            try:
+                payload = json.loads(body, encoding="utf8")
+            except ValueError:
+                payload = body
+            try:
+                callback_spec = inspect.getargspec(callback)
+                if callback_spec.keywords != None:
+                    callback(payload, routing_key = routing_key)
+                else:
+                    callback(payload)
+                channel.basic_ack(method.delivery_tag)
+            except Exception as e:
+                if method.redelivered:
+                    channel.basic_nack(delivery_tag = method.delivery_tag, requeue = False)
+                    #print "Warning: an error ocurred while processing the message for a second time. Message rejected."
+                else:
+                    channel.basic_nack(delivery_tag = method.delivery_tag, requeue = True)
+                self.connection.close()
+                raise
+        return handle_delivery
