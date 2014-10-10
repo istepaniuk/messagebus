@@ -16,12 +16,8 @@ class MessageBus:
         self.broker_url = broker_url
         self.consumer = Consumer(self.broker_url, queue_prefix)
 
-    def publish(self, message, payload=''):
-        body = ''
-        if type(payload) is dict:
-            body = json.dumps(payload, ensure_ascii=False)
-        if type(payload) is str:
-            body = payload
+    def publish(self, message, payload={}):
+        body = json.dumps(payload, ensure_ascii=False)
         connection = pika.BlockingConnection(pika.URLParameters(self.broker_url))
         channel = connection.channel()
         channel.basic_publish(exchange=self.RABBITMQ_DEFAULT_EXCHANGE, routing_key=message, body=body)

@@ -88,25 +88,20 @@ class Consumer:
 
     def _get_handle_delivery_callback(self, subscription):
         def handle_delivery(channel, method, header, body):
-            routing_key = method.routing_key
-            callback = subscription["callback"]
             try:
-                payload = json.loads(body, encoding="utf8")
-            except ValueError:
-                payload = body
-            try:
-                callback_spec = inspect.getargspec(callback)
-                if callback_spec.keywords != None:
-                    callback(payload, routing_key = routing_key)
-                else:
-                    callback(payload)
+                payload = json.loads(body, encoding = 'utf8')
+                self._invoke_callback(subscription['callback'], payload, method.routing_key)
                 channel.basic_ack(method.delivery_tag)
             except Exception as e:
-                if method.redelivered:
-                    channel.basic_nack(delivery_tag = method.delivery_tag, requeue = False)
-                    #print "Warning: an error ocurred while processing the message for a second time. Message rejected."
-                else:
-                    channel.basic_nack(delivery_tag = method.delivery_tag, requeue = True)
+                should_requeue = not method.redelivered
+                channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
                 self.connection.close()
                 raise
         return handle_delivery
+
+    def _invoke_callback(self, callback, payload, routing_key):
+        callback_spec = inspect.getargspec(callback)
+        if callback_spec.keywords != None:
+            callback(payload, routing_key = routing_key)
+        else:
+            callback(payload)
