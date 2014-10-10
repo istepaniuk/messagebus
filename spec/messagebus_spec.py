@@ -115,3 +115,22 @@ with description('messagebus'):
 
         sleep(MSG_TIMEOUT)
         expect(received["count"]).to(be(2))
+
+    with it('can subscribe to wildcard a pattern'):
+        received1 = {}
+        received2 = {}
+        def callback1(message): received1.update(message)
+        def callback2(message): received2.update(message)
+        self.bus.subscribe('test1.*', callback1)
+        self.bus.subscribe('test2.*', callback2)
+        def start(): self.bus.start()
+        thread = Thread(target = start)
+        thread.daemon = True
+        thread.start()
+
+        self.bus.publish('test1.message1', {'id': 15})
+        self.bus.publish('test2.message2', {'id': 28})
+
+        sleep(MSG_TIMEOUT)
+        expect(received1).to(have_key('id', 15))
+        expect(received2).to(have_key('id', 28))
