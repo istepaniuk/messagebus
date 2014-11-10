@@ -100,6 +100,9 @@ class Consumer:
         return handle_delivery
 
     def _invoke_callback(self, callback, payload, routing_key):
+        if str(type(callback)) == "<type 'classobj'>":
+            callback(payload)
+            return
         callback_spec = inspect.getargspec(callback)
         if callback_spec.keywords != None:
             callback(payload, routing_key = routing_key)
