@@ -26,7 +26,10 @@ class Consumer:
         params = pika.URLParameters(self.broker_url)
         self.connection = pika.SelectConnection(params, self._on_connected)
         self.connection.add_on_close_callback(self._on_connection_closed)
-        self.connection.ioloop.start()
+        try:
+            self.connection.ioloop.start()
+        except KeyboardInterrupt:
+            print "KeyboardInterrupt. Adios!"
 
     def _on_connection_closed(self, a, b, c):
         raise Exception("Connection lost")
