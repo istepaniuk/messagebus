@@ -4,6 +4,9 @@ import os
 import socket
 import inspect
 import datetime
+from threading import Thread, Event
+import time
+
 try:
     from consumer import Consumer
 except ImportError:
@@ -16,6 +19,7 @@ class MessageBus:
     def __init__(self, broker_url='amqp://localhost', queue_prefix=None):
         self.broker_url = broker_url
         self.consumer = Consumer(self.broker_url, queue_prefix)
+        self._queue_prefix = queue_prefix
 
     def publish(self, message, payload={}):
         body = json.dumps(self._prepare_payload(payload), ensure_ascii=False)
@@ -37,6 +41,31 @@ class MessageBus:
     def subscribe(self, message, callback):
         self.consumer.subscribe(message, callback)
 
+    def subscribe_and_publish_response(self, message, callback):
+        def subscribe_callback(request_payload):
+            response = callback(request_payload)
+            self.publish(message + '.answered', response)
+        self.consumer.subscribe(message, subscribe_callback)
+
+    def publish_and_get_response(self, message, payload):
+        self.publish(message, payload)
+        consumer = Consumer(self.broker_url, self._queue_prefix)
+        response = {}
+        response_received = Event()
+
+        def response_callback(response_payload):
+            response['payload'] = response_payload
+            response_received.set()
+
+        def wait_for_response():
+            consumer.subscribe(message + '.answered', response_callback)
+            consumer.start()
+
+        thread = Thread(target = wait_for_response)
+        thread.daemon = True
+        thread.start()
+        response_received.wait(1)
+        return response.get('payload')
+
     def start(self):
         self.consumer.start()
-
