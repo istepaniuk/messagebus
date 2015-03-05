@@ -134,3 +134,19 @@ with description('messagebus'):
         sleep(MSG_TIMEOUT)
         expect(received1).to(have_key('id', 15))
         expect(received2).to(have_key('id', 28))
+
+    with it('can publish a message and wait for a response'):
+        def echoing_callback(message): return message
+        self.bus.subscribe_and_publish_response(
+            'test.response_requested', echoing_callback)
+        bus2 = MessageBus(queue_prefix = 'testing2')
+        origin_uuid = str(uuid.uuid1())
+        def start(): self.bus.start()
+        thread = Thread(target = start)
+        thread.daemon = True
+        thread.start()
+
+        received = bus2.publish_and_get_response(
+            'test.response_requested', {'proof': origin_uuid })
+
+        expect(received['proof']).to(equal(origin_uuid))
