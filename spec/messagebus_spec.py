@@ -17,10 +17,7 @@ with description('messagebus'):
         status = {"received": False }
         def callback(x): status["received"] = True
         self.bus.subscribe('test.message', callback)
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         self.bus.publish('test.message',{})
 
@@ -32,10 +29,7 @@ with description('messagebus'):
         def callback(message, **kwargs):
             status["routing_key"] = kwargs['routing_key']
         self.bus.subscribe('test.message4', callback)
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         self.bus.publish('test.message4')
 
@@ -46,10 +40,7 @@ with description('messagebus'):
         status = {"received": False }
         def callback(x): status["received"] = True
         self.bus.subscribe('test.some_test_message', callback)
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         self.bus.publish('test.some_other_different_test_message')
 
@@ -60,10 +51,7 @@ with description('messagebus'):
         received = {}
         def callback(message): received.update(message)
         self.bus.subscribe('test.message_with_payload', callback)
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         self.bus.publish('test.message_with_payload', {'id': 4, 'name': u'John Döe'})
 
@@ -78,10 +66,7 @@ with description('messagebus'):
         def callback2(message): received2.update(message)
         self.bus.subscribe('test.message1', callback1)
         self.bus.subscribe('test.message2', callback2)
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         self.bus.publish('test.message1', {'id': 5})
         self.bus.publish('test.message2', {'id': 8})
@@ -123,10 +108,7 @@ with description('messagebus'):
         def callback2(message): received2.update(message)
         self.bus.subscribe('test1.*', callback1)
         self.bus.subscribe('test2.*', callback2)
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         self.bus.publish('test1.message1', {'id': 15})
         self.bus.publish('test2.message2', {'id': 28})
@@ -141,12 +123,16 @@ with description('messagebus'):
             'test.response_requested', echoing_callback)
         bus2 = MessageBus(queue_prefix = 'testing2')
         origin_uuid = str(uuid.uuid1())
-        def start(): self.bus.start()
-        thread = Thread(target = start)
-        thread.daemon = True
-        thread.start()
+        self._start_bus_in_background()
 
         received = bus2.publish_and_get_response(
             'test.response_requested', {'proof': origin_uuid })
 
         expect(received['proof']).to(equal(origin_uuid))
+
+    def _start_bus_in_background(self):
+        def callback():
+            self.bus.start()
+        thread = Thread(target = callback)
+        thread.daemon = True
+        thread.start()
