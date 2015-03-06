@@ -11,6 +11,7 @@ class Consumer:
         self.broker_url = broker_url
         self._subscriptions = []
         self._bound_count = 0
+        self.on_connection_setup_finished = lambda: None
 
     def subscribe(self, pattern, callback):
         queue_name = self._get_queue_name(pattern)
@@ -39,6 +40,7 @@ class Consumer:
 
     def _on_connected(self, connection):
         connection.channel(self._on_channel_opened)
+        self.on_connection_setup_finished()
 
     def _on_channel_opened(self, new_channel):
         self.channel = new_channel

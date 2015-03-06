@@ -1,87 +1,106 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from messagebus import MessageBus
 from expects import *
-from threading import Thread
+from threading import Thread, Event
 from time import sleep
 import uuid
 
-MSG_TIMEOUT = 0.045
+MSG_TIMEOUT = 3
 
 with description('messagebus'):
     with before.each:
         self.bus = MessageBus(queue_prefix = 'testing')
+        self.bus2 = MessageBus(queue_prefix = 'testing_publish')
 
     with it('can send and receive a message'):
-        status = {"received": False }
-        def callback(x): status["received"] = True
+        received_event = Event()
+        def callback(x): received_event.set()
         self.bus.subscribe('test.message', callback)
         self._start_bus_in_background()
 
-        self.bus.publish('test.message',{})
+        self.bus2.publish('test.message',{})
 
-        sleep(MSG_TIMEOUT)
-        expect(status["received"]).to(be_true)
+        has_received = received_event.wait(MSG_TIMEOUT)
+        expect(has_received).to(be_true)
 
     with it('can passes the routing key to the callback'):
+        received_event = Event()
         status = {"routing_key": None }
         def callback(message, **kwargs):
             status["routing_key"] = kwargs['routing_key']
+            received_event.set()
         self.bus.subscribe('test.message4', callback)
         self._start_bus_in_background()
 
-        self.bus.publish('test.message4')
+        self.bus2.publish('test.message4')
 
-        sleep(MSG_TIMEOUT)
+        received_event.wait(MSG_TIMEOUT)
         expect(status["routing_key"]).to(equal('test.message4'))
 
     with it('does not receive a message if not subscribed to it'):
-        status = {"received": False }
-        def callback(x): status["received"] = True
+        received_event = Event()
+        def callback(x): received_event.set()
         self.bus.subscribe('test.some_test_message', callback)
         self._start_bus_in_background()
 
-        self.bus.publish('test.some_other_different_test_message')
+        self.bus2.publish('test.some_other_different_test_message')
 
-        sleep(MSG_TIMEOUT)
-        expect(status["received"]).to(be_false)
+        has_received = received_event.wait(0.5)
+        expect(has_received).to(be_false)
 
     with it('transmits the payload along the message'):
         received = {}
-        def callback(message): received.update(message)
+        received_event = Event()
+        def callback(message):
+            received.update(message)
+            received_event.set()
         self.bus.subscribe('test.message_with_payload', callback)
         self._start_bus_in_background()
 
-        self.bus.publish('test.message_with_payload', {'id': 4, 'name': u'John Döe'})
+        self.bus2.publish('test.message_with_payload', {'id': 4, 'name': u'John Döe'})
 
-        sleep(MSG_TIMEOUT)
+        has_received = received_event.wait(MSG_TIMEOUT)
+        if not has_received:
+            print "does not work"
+            sleep(6)
+        expect(has_received).to(be_true)
         expect(received).to(have_key('id', 4))
         expect(received).to(have_key('name', u'John Döe'))
 
     with it('can subscribe to two message types'):
         received1 = {}
         received2 = {}
-        def callback1(message): received1.update(message)
-        def callback2(message): received2.update(message)
+        received_event1 = Event()
+        received_event2 = Event()
+        def callback1(message):
+            received1.update(message)
+            received_event1.set()
+        def callback2(message):
+            received2.update(message)
+            received_event2.set()
         self.bus.subscribe('test.message1', callback1)
         self.bus.subscribe('test.message2', callback2)
         self._start_bus_in_background()
 
-        self.bus.publish('test.message1', {'id': 5})
-        self.bus.publish('test.message2', {'id': 8})
+        self.bus2.publish('test.message1', {'id': 5})
+        self.bus2.publish('test.message2', {'id': 8})
 
-        sleep(MSG_TIMEOUT)
+        received_event1.wait(MSG_TIMEOUT)
+        received_event2.wait(MSG_TIMEOUT)
         expect(received1).to(have_key('id', 5))
         expect(received2).to(have_key('id', 8))
 
     with it('retries to process a message twice if an exception is thrown'):
         instance = str(uuid.uuid1())
+        received_event = Event()
         received = { "count": 0 }
         def callback(message):
             if instance != message["instance"]:
                 return
             received["count"] = received["count"] + 1
+            if received["count"] > 1:
+                received_event.set()
             raise Exception('test_exception')
         def start():
             while(True):
@@ -98,22 +117,29 @@ with description('messagebus'):
 
         MessageBus().publish('test.message3', {"instance": instance})
 
-        sleep(MSG_TIMEOUT)
+        received_event.wait(MSG_TIMEOUT)
         expect(received["count"]).to(be(2))
 
     with it('can subscribe to wildcard a pattern'):
         received1 = {}
         received2 = {}
-        def callback1(message): received1.update(message)
-        def callback2(message): received2.update(message)
+        received_event1 = Event()
+        received_event2 = Event()
+        def callback1(message):
+            received1.update(message)
+            received_event1.set()
+        def callback2(message):
+            received2.update(message)
+            received_event2.set()
         self.bus.subscribe('test1.*', callback1)
         self.bus.subscribe('test2.*', callback2)
         self._start_bus_in_background()
 
-        self.bus.publish('test1.message1', {'id': 15})
-        self.bus.publish('test2.message2', {'id': 28})
+        self.bus2.publish('test1.message1', {'id': 15})
+        self.bus2.publish('test2.message2', {'id': 28})
 
-        sleep(MSG_TIMEOUT)
+        received_event1.wait(MSG_TIMEOUT)
+        received_event2.wait(MSG_TIMEOUT)
         expect(received1).to(have_key('id', 15))
         expect(received2).to(have_key('id', 28))
 
@@ -121,18 +147,20 @@ with description('messagebus'):
         def echoing_callback(message): return message
         self.bus.subscribe_and_publish_response(
             'test.response_requested', echoing_callback)
-        bus2 = MessageBus(queue_prefix = 'testing2')
         origin_uuid = str(uuid.uuid1())
         self._start_bus_in_background()
 
-        received = bus2.publish_and_get_response(
+        received = self.bus2.publish_and_get_response(
             'test.response_requested', {'proof': origin_uuid })
 
         expect(received['proof']).to(equal(origin_uuid))
 
     def _start_bus_in_background(self):
+        started = Event()
+        self.bus.consumer.on_connection_setup_finished = lambda: started.set()
         def callback():
             self.bus.start()
         thread = Thread(target = callback)
         thread.daemon = True
         thread.start()
+        started.wait(2)
