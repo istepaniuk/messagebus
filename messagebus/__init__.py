@@ -47,7 +47,7 @@ class MessageBus:
             self.publish(message + '.answered', response)
         self.consumer.subscribe(message, subscribe_callback)
 
-    def publish_and_get_response(self, message, payload):
+    def publish_and_get_response(self, message, payload, timeout_secs=5):
         self.publish(message, payload)
         consumer = Consumer(self.broker_url, self._queue_prefix)
         response = {}
@@ -64,7 +64,7 @@ class MessageBus:
         thread = Thread(target = wait_for_response)
         thread.daemon = True
         thread.start()
-        response_received.wait(1)
+        response_received.wait(timeout_secs)
         return response.get('payload')
 
     def start(self):
