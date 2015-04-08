@@ -6,12 +6,12 @@ import inspect
 import datetime
 from threading import Thread, Event
 import time
+import uuid
 
 try:
     from consumer import Consumer
 except ImportError:
     from messagebus.consumer import Consumer
-
 
 class MessageBus:
     RABBITMQ_DEFAULT_EXCHANGE = 'tcr'
@@ -22,10 +22,22 @@ class MessageBus:
         self._queue_prefix = queue_prefix
 
     def publish(self, message, payload={}):
+        self._publish(message, payload)
+
+    def _publish(self, message, payload, correlation_id=None):
         body = json.dumps(self._prepare_payload(payload), ensure_ascii=False)
         connection = pika.BlockingConnection(pika.URLParameters(self.broker_url))
         channel = connection.channel()
-        channel.basic_publish(exchange=self.RABBITMQ_DEFAULT_EXCHANGE, routing_key=message, body=body)
+
+        properties = None
+        if correlation_id:
+            properties = pika.BasicProperties(correlation_id=correlation_id)
+
+        channel.basic_publish(
+            exchange=self.RABBITMQ_DEFAULT_EXCHANGE,
+            routing_key=message,
+            body=body,
+            properties=properties)
         connection.close()
 
     def _prepare_payload(self, payload):
@@ -42,12 +54,14 @@ class MessageBus:
         self.consumer.subscribe(message, callback)
 
     def subscribe_and_publish_response(self, message, callback):
-        def subscribe_callback(request_payload):
+        def subscribe_callback(request_payload, **kwargs):
+            correlation_id = kwargs['properties'].correlation_id
             response = callback(request_payload)
-            self.publish(message + '.answered', response)
+            self._publish(message + '.answered', response, correlation_id)
         self.consumer.subscribe(message, subscribe_callback, transient_queue=True)
 
     def publish_and_get_response(self, message, payload, timeout_secs=5):
+        sent_correlation = str(uuid.uuid1())
         consumer_ready = Event()
         def on_consumer_ready():
             consumer_ready.set()
@@ -57,7 +71,9 @@ class MessageBus:
         response = {}
         response_received = Event()
 
-        def response_callback(response_payload):
+        def response_callback(response_payload, **kwargs):
+            if not sent_correlation == kwargs['properties'].correlation_id:
+                return
             response['payload'] = response_payload
             response_received.set()
 
@@ -70,9 +86,15 @@ class MessageBus:
         thread.start()
 
         consumer_ready.wait(2)
-        self.publish(message, payload)
-        response_received.wait(timeout_secs)
+        self._publish(message, payload, correlation_id=sent_correlation)
+        timed_out = not response_received.wait(timeout_secs)
+        if timed_out:
+            raise MessageBusTimeoutError()
         return response.get('payload')
 
     def start(self):
         self.consumer.start()
+
+
+class MessageBusTimeoutError(Exception):
+    pass

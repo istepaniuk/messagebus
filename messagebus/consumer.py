@@ -3,6 +3,7 @@ import json
 import os
 import socket
 import inspect
+import uuid
 
 class Consumer:
     def __init__(self, broker_url, queue_prefix=None):
@@ -15,6 +16,8 @@ class Consumer:
 
     def subscribe(self, pattern, callback, transient_queue=False):
         queue_name = self._get_queue_name(pattern)
+        if transient_queue:
+            queue_name += str(uuid.uuid1())
         self._subscriptions.append({
             "callback": callback,
             "queue_name": queue_name,
@@ -94,13 +97,17 @@ class Consumer:
                     no_ack= True if subscription['transient_queue'] else False)
 
     def _get_handle_delivery_callback(self, subscription):
-        def handle_delivery(channel, method, header, body):
+        def handle_delivery(channel, method, properties, body):
             try:
-                payload = json.loads(body, encoding = 'utf8')
-                self._invoke_callback(subscription['callback'], payload, method.routing_key)
+                payload = json.loads(body, encoding='utf8')
+                self._invoke_callback(subscription['callback'],
+                                      payload,
+                                      method.routing_key,
+                                      properties)
+
                 if not subscription['transient_queue']:
                     channel.basic_ack(method.delivery_tag)
-            except Exception as e:
+            except Exception:
                 should_requeue = not method.redelivered
                 if not subscription['transient_queue']:
                     channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
@@ -108,12 +115,17 @@ class Consumer:
                 raise
         return handle_delivery
 
-    def _invoke_callback(self, callback, payload, routing_key):
+    def _invoke_callback(self, callback, payload, routing_key, properties):
         if str(type(callback)) == "<type 'classobj'>":
             callback(payload)
             return
         callback_spec = inspect.getargspec(callback)
-        if callback_spec.keywords != None:
-            callback(payload, routing_key = routing_key)
+
+        if callback_spec.keywords is not None:
+            kwargs = dict(
+                routing_key=routing_key,
+                properties=properties
+            )
+            callback(payload, **kwargs)
         else:
             callback(payload)
