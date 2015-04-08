@@ -154,6 +154,31 @@ with description('messagebus'):
 
         expect(received['proof']).to(equal(origin_uuid))
 
+    with it('can publish messages and wait for a responses without cross-talk'):
+        msgtype = str(uuid.uuid1())
+        def echoing_callback(message):
+            sleep(message['delay'])
+            return message
+        self.bus.subscribe_and_publish_response(
+            'test.response_requested.ct.'+msgtype, echoing_callback)
+        self._start_bus_in_background(self.bus)
+        received_messages = {}
+        sent_messages = []
+
+        def publish_and_check_response():
+            proof_uuid = str(uuid.uuid1())
+            bus = MessageBus(queue_prefix = 'testing_publish')
+            msg = dict(proof=proof_uuid)
+            msg['delay'] = 0.5 if len(sent_messages) == 2 else 0
+            sent_messages.append(msg)
+            received_messages[proof_uuid] = bus.publish_and_get_response(
+                'test.response_requested.ct.'+msgtype, msg)
+        self._run_times_in_parallel(5, publish_and_check_response)
+
+        expect(len(received_messages)).to(be(5))
+        for proof, received in received_messages.items():
+            expect(proof).to(equal(received['proof']))
+
     def _start_bus_in_background(self, bus):
         started = Event()
         bus.consumer.on_connection_setup_finished = lambda: started.set()
@@ -163,3 +188,16 @@ with description('messagebus'):
         thread.daemon = True
         thread.start()
         started.wait(2)
+
+    def _run_times_in_parallel(self, times, callback):
+        threads = {}
+        for i in range(times):
+            thread = Thread(target = callback)
+            thread.daemon = True
+            thread.start()
+            threads[i] = thread
+
+        for i in range(times):
+            threads[i].join(10)
+
+
