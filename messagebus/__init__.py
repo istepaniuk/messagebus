@@ -45,11 +45,15 @@ class MessageBus:
         def subscribe_callback(request_payload):
             response = callback(request_payload)
             self.publish(message + '.answered', response)
-        self.consumer.subscribe(message, subscribe_callback)
+        self.consumer.subscribe(message, subscribe_callback, transient_queue=True)
 
     def publish_and_get_response(self, message, payload, timeout_secs=5):
-        self.publish(message, payload)
+        consumer_ready = Event()
+        def on_consumer_ready():
+            consumer_ready.set()
+
         consumer = Consumer(self.broker_url, self._queue_prefix)
+        consumer.on_connection_setup_finished = on_consumer_ready
         response = {}
         response_received = Event()
 
@@ -58,12 +62,15 @@ class MessageBus:
             response_received.set()
 
         def wait_for_response():
-            consumer.subscribe(message + '.answered', response_callback)
+            consumer.subscribe(message + '.answered', response_callback, transient_queue=True)
             consumer.start()
 
         thread = Thread(target = wait_for_response)
         thread.daemon = True
         thread.start()
+
+        consumer_ready.wait(2)
+        self.publish(message, payload)
         response_received.wait(timeout_secs)
         return response.get('payload')
 

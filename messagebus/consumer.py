@@ -13,12 +13,13 @@ class Consumer:
         self._bound_count = 0
         self.on_connection_setup_finished = lambda: None
 
-    def subscribe(self, pattern, callback):
+    def subscribe(self, pattern, callback, transient_queue=False):
         queue_name = self._get_queue_name(pattern)
         self._subscriptions.append({
             "callback": callback,
             "queue_name": queue_name,
-            "pattern": pattern
+            "pattern": pattern,
+            "transient_queue": transient_queue,
         })
 
     def start(self):
@@ -61,10 +62,10 @@ class Consumer:
         for subscription in self._subscriptions:
             arguments = { 'x-dead-letter-exchange' : 'tcr.dead-letter' }
             self.channel.queue_declare(queue=subscription["queue_name"],
-                durable=True,
+                durable=False if subscription['transient_queue'] else True,
                 arguments = arguments,
                 exclusive=False,
-                auto_delete=False,
+                auto_delete=True if subscription['transient_queue'] else False,
                 callback=self._on_queue_declared)
 
     def _get_queue_name(self, subscription_pattern):
@@ -89,17 +90,20 @@ class Consumer:
         if self._bound_count == len(self._subscriptions):
             for subscription in self._subscriptions:
                 self.channel.basic_consume(self._get_handle_delivery_callback(subscription),
-                    queue = subscription['queue_name'], no_ack=False)
+                    queue = subscription['queue_name'],
+                    no_ack= True if subscription['transient_queue'] else False)
 
     def _get_handle_delivery_callback(self, subscription):
         def handle_delivery(channel, method, header, body):
             try:
                 payload = json.loads(body, encoding = 'utf8')
                 self._invoke_callback(subscription['callback'], payload, method.routing_key)
-                channel.basic_ack(method.delivery_tag)
+                if not subscription['transient_queue']:
+                    channel.basic_ack(method.delivery_tag)
             except Exception as e:
                 should_requeue = not method.redelivered
-                channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
+                if not subscription['transient_queue']:
+                    channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
                 self.connection.close()
                 raise
         return handle_delivery
