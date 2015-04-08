@@ -17,7 +17,7 @@ with description('messagebus'):
         received_event = Event()
         def callback(x): received_event.set()
         self.bus.subscribe('test.message', callback)
-        self._start_bus_in_background()
+        self._start_bus_in_background(self.bus)
 
         self.bus2.publish('test.message',{})
 
@@ -31,7 +31,7 @@ with description('messagebus'):
             status["routing_key"] = kwargs['routing_key']
             received_event.set()
         self.bus.subscribe('test.message4', callback)
-        self._start_bus_in_background()
+        self._start_bus_in_background(self.bus)
 
         self.bus2.publish('test.message4')
 
@@ -42,7 +42,7 @@ with description('messagebus'):
         received_event = Event()
         def callback(x): received_event.set()
         self.bus.subscribe('test.some_test_message', callback)
-        self._start_bus_in_background()
+        self._start_bus_in_background(self.bus)
 
         self.bus2.publish('test.some_other_different_test_message')
 
@@ -56,14 +56,11 @@ with description('messagebus'):
             received.update(message)
             received_event.set()
         self.bus.subscribe('test.message_with_payload', callback)
-        self._start_bus_in_background()
+        self._start_bus_in_background(self.bus)
 
         self.bus2.publish('test.message_with_payload', {'id': 4, 'name': u'John Döe'})
 
         has_received = received_event.wait(MSG_TIMEOUT)
-        if not has_received:
-            print "does not work"
-            sleep(6)
         expect(has_received).to(be_true)
         expect(received).to(have_key('id', 4))
         expect(received).to(have_key('name', u'John Döe'))
@@ -81,7 +78,7 @@ with description('messagebus'):
             received_event2.set()
         self.bus.subscribe('test.message1', callback1)
         self.bus.subscribe('test.message2', callback2)
-        self._start_bus_in_background()
+        self._start_bus_in_background(self.bus)
 
         self.bus2.publish('test.message1', {'id': 5})
         self.bus2.publish('test.message2', {'id': 8})
@@ -133,7 +130,7 @@ with description('messagebus'):
             received_event2.set()
         self.bus.subscribe('test1.*', callback1)
         self.bus.subscribe('test2.*', callback2)
-        self._start_bus_in_background()
+        self._start_bus_in_background(self.bus)
 
         self.bus2.publish('test1.message1', {'id': 15})
         self.bus2.publish('test2.message2', {'id': 28})
@@ -144,22 +141,24 @@ with description('messagebus'):
         expect(received2).to(have_key('id', 28))
 
     with it('can publish a message and wait for a response'):
-        def echoing_callback(message): return message
+        msgtype = str(uuid.uuid1())
+        def echoing_callback(message):
+            return message
         self.bus.subscribe_and_publish_response(
-            'test.response_requested', echoing_callback)
+            'test.response_requested.'+msgtype, echoing_callback)
+        self._start_bus_in_background(self.bus)
         origin_uuid = str(uuid.uuid1())
-        self._start_bus_in_background()
 
         received = self.bus2.publish_and_get_response(
-            'test.response_requested', {'proof': origin_uuid })
+            'test.response_requested.'+msgtype, {'proof': origin_uuid })
 
         expect(received['proof']).to(equal(origin_uuid))
 
-    def _start_bus_in_background(self):
+    def _start_bus_in_background(self, bus):
         started = Event()
-        self.bus.consumer.on_connection_setup_finished = lambda: started.set()
+        bus.consumer.on_connection_setup_finished = lambda: started.set()
         def callback():
-            self.bus.start()
+            bus.start()
         thread = Thread(target = callback)
         thread.daemon = True
         thread.start()
