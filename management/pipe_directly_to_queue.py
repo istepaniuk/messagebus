@@ -33,7 +33,7 @@ with redirect.RedirectStdStreamsToDevNull():
     tmp_x = "tmp-mgmt-x-%s" % uuid.uuid1()
     client.create_exchange(vhost, tmp_x, 'topic', auto_delete = True, durable = False)
     client.create_binding(vhost, tmp_x, args.queue_name, '#')
-    rt_key = "-".join(str(args.queue_name).split("-")[1:])
+    rt_key = str(args.queue_name).rsplit("-", 1)[-1]
     for message in messages:
         messages = client.publish(vhost, tmp_x, rt_key, message)
     client.delete_binding(vhost, tmp_x, args.queue_name, '%23')
