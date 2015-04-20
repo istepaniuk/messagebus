@@ -1,3 +1,4 @@
+-r requirements.txt
+
 mamba==0.8.1
-pika==0.9.14
 expects==0.4.2
