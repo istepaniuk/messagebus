@@ -16,7 +16,7 @@ class Consumer:
 
     def subscribe(self, pattern, callback, transient_queue=False):
         queue_name = self._get_queue_name(pattern)
-        if transient_queue:
+        if transient_queue and queue_name.endswith('.answered'):
             queue_name += str(uuid.uuid1())
         self._subscriptions.append({
             "callback": callback,
