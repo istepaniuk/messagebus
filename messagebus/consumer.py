@@ -4,9 +4,11 @@ import os
 import socket
 import inspect
 import uuid
+import logging
 
 class Consumer:
     def __init__(self, broker_url, queue_prefix=None):
+        self._logger = logging.getLogger(__name__)
         self.queue_prefix = queue_prefix
         self.exchange = 'tcr'
         self.broker_url = broker_url
@@ -112,6 +114,11 @@ class Consumer:
                 if not subscription['transient_queue']:
                     channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
                 self.connection.close()
+                if not should_requeue:
+                    self._logger.exception(
+                        "Unhandled exception in message subscription for '%s'",
+                        method.routing_key,
+                        extra=dict(subscription=subscription, body=body))
                 raise
         return handle_delivery
 
