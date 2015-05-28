@@ -90,6 +90,7 @@ class MessageBus:
         timed_out = not response_received.wait(timeout_secs)
         if timed_out:
             raise MessageBusTimeoutError()
+        consumer.stop()
         return response.get('payload')
 
     def start(self):

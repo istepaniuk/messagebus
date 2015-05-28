@@ -14,6 +14,7 @@ class Consumer:
         self.broker_url = broker_url
         self._subscriptions = []
         self._bound_count = 0
+        self._closing = False
         self.on_connection_setup_finished = lambda: None
 
     def subscribe(self, pattern, callback, transient_queue=False):
@@ -36,13 +37,19 @@ class Consumer:
         try:
             self.connection.ioloop.start()
         except KeyboardInterrupt:
-            print "KeyboardInterrupt. Adios!"
+            print("KeyboardInterrupt. Adios!")
+
+    def stop(self):
+        self._closing = True
+        self.connection.close()
 
     def _on_connection_closed(self, a, b, c):
-        raise Exception("Connection lost")
+        if not self._closing:
+            raise Exception("Connection lost")
 
     def _on_channel_closed(self, channel, reply_code, reply_text):
-        raise IOError("Channel closed (%s) %s" % (reply_code, reply_text))
+        if not self._closing:
+            raise IOError("Channel closed (%s) %s" % (reply_code, reply_text))
 
     def _on_connected(self, connection):
         connection.channel(self._on_channel_opened)
