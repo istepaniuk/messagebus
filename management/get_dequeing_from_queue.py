@@ -46,5 +46,6 @@ def set_output_encoding(encoding='utf-8'):
 set_output_encoding()
 
 for message in messages:
-    print message['payload']
+    message['payload'] = json.loads(message['payload'])
+    print json.dumps(message, ensure_ascii=False)
 

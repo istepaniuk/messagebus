@@ -26,7 +26,7 @@ client = pyrabbit.Client(
     parsed_url.password)
 
 with redirect.RedirectStdStreamsToDevNull():
-    messages = client.get_messages('/', 'dead-letter', 1000, requeue = True)
+    messages = client.get_messages('/', 'dead-letter', 5000, requeue=False)
 
 def get_queue_name(msg):
     try:
@@ -39,8 +39,8 @@ def set_output_encoding(encoding='utf-8'):
     import codecs
     '''When piping to the terminal, python knows the encoding needed, and
        sets it automatically. But when piping to another program (for example,
-       | less), python can not check the output encoding. In that case, it 
-       is None. What I am doing here is to catch this situation for both 
+       | less), python can not check the output encoding. In that case, it
+       is None. What I am doing here is to catch this situation for both
        stdout and stderr and force the encoding'''
     current = sys.stdout.encoding
     if current is None :
@@ -53,5 +53,6 @@ set_output_encoding()
 
 for message in messages:
     if (args.queue_name is None) or (get_queue_name(message) == args.queue_name):
-        print message['payload']
+        message['payload'] = json.loads(message.pop('payload'))
+        print json.dumps(message)
 
