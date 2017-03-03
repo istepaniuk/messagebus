@@ -1,11 +1,13 @@
 python:
-  - "2.6"
   - "2.7"
-  - "3.2"
-  - "3.3"
-  - "3.4"
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get build-dep -qq python-pathtools
+  - sudo apt-get install -qq python-pathtools
 services:
   - rabbitmq
 install:
   - pip install -r requirements-dev.txt
 script: ./run_integration_tests.sh
+virtualenv:
+    system_site_packages: true
