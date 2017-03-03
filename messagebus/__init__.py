@@ -14,7 +14,7 @@ except ImportError:
     from messagebus.consumer import Consumer
 
 class MessageBus:
-    RABBITMQ_DEFAULT_EXCHANGE = 'tcr'
+    RABBITMQ_DEFAULT_EXCHANGE = 'the_exchange_name'
 
     def __init__(self, broker_url='amqp://localhost', queue_prefix=None):
         self.broker_url = broker_url
