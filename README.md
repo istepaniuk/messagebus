@@ -2,11 +2,14 @@ messagebus
 ==========
 Wrapper arround Pika to publish and subscribe to messages on RabbitMQ
 
-# Why?
+## Build status
+![Build status](https://api.travis-ci.org/istepaniuk/messagebus.svg?branch=master)
+
+## Why?
 Pika is a good AMQP library, but it exposes AMQP for any purpose.
 This library uses AMQP to implement this very simple interface, based on many assumptions about the way we use AMQP.
 
-# Usage
+## Usage
 
 instantiating `messagebus.MessageBus` is everything you need to do.
 
