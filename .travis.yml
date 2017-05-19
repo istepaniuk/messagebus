@@ -8,5 +8,5 @@ before_install:
 services:
   - rabbitmq
 install:
-  - pip install --user -r requirements-dev.txt
+  - pip install -r requirements-dev.txt
 script: ./run_integration_tests.sh > /dev/null ; ./run_integration_tests.sh
