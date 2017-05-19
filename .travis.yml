@@ -1,6 +1,7 @@
 language: python
 sudo: required
 python:
+  - "3.4"
   - "3.5"
 before_install:
   - sudo pip install pathtools
@@ -9,5 +10,3 @@ services:
 install:
   - pip install --user -r requirements-dev.txt
 script: ./run_integration_tests.sh > /dev/null ; ./run_integration_tests.sh
-virtualenv:
-    system_site_packages: true
