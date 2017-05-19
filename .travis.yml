@@ -1,5 +1,6 @@
 python:
   - "2.7"
+  - "3.5"
 before_install:
   - sudo pip install pathtools
 services:

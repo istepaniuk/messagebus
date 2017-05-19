@@ -46,7 +46,7 @@ class MessageBus:
                 return value.isoformat()
             return value
         proc_payload = { k: serialize(v) for k, v in payload.items() }
-        if not proc_payload.has_key('timestamp'):
+        if 'timestamp' not in proc_payload:
             proc_payload['timestamp'] = datetime.datetime.utcnow().isoformat()
         return proc_payload
 
