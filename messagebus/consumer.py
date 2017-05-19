@@ -108,7 +108,7 @@ class Consumer:
     def _get_handle_delivery_callback(self, subscription):
         def handle_delivery(channel, method, properties, body):
             try:
-                payload = json.loads(body.decode(), encoding='utf8')
+                payload = json.loads(body.decode('utf-8'), encoding='utf-8')
                 self._invoke_callback(subscription['callback'],
                                       payload,
                                       method.routing_key,
