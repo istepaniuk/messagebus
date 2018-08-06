@@ -7,7 +7,7 @@ Wrapper arround Pika to publish and subscribe to messages on RabbitMQ
 
 ## Why?
 Pika is a good AMQP library, but it exposes AMQP for any purpose.
-This library uses AMQP to implement this very simple interface, based on many assumptions about the way we use AMQP to implement the [Message Bus pattern](https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageBus.html)
+This library uses AMQP to implement this very simple interface, based on many assumptions about the way we use AMQP to implement the [Message Bus pattern](https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageBus.html), [Publish-Subscribe Channel] and [Competing Consumers](https://www.enterpriseintegrationpatterns.com/patterns/messaging/CompetingConsumers.html)
 
 ## Usage
 
