@@ -3,7 +3,7 @@ messagebus
 Wrapper arround Pika to publish and subscribe to messages on RabbitMQ
 
 ## Build status
-![Build status](https://api.travis-ci.org/istepaniuk/messagebus.svg?branch=master)
+[![Build status](https://api.travis-ci.org/istepaniuk/messagebus.svg?branch=master)](https://api.travis-ci.org/istepaniuk/messagebus.svg?branch=master)
 
 ## Why?
 Pika is a good AMQP library, but it exposes AMQP for any purpose.
