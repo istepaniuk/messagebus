@@ -13,7 +13,7 @@ This library uses AMQP to implement this very simple interface, based on many as
 
 instantiating `messagebus.MessageBus` is everything you need to do.
 
-```
+```python
 class MessageBus:
     def __init__(self, broker_url='amqp://localhost', queue_prefix=None):
 
@@ -26,7 +26,7 @@ class MessageBus:
 
 
 Additionally, there are two methods to implement synchronous/RPC-like calls over the bus.
-```
+```python
     def subscribe_and_publish_response(self, message, callback)
         
     def publish_and_get_response(self, message, payload, timeout_secs=5)
