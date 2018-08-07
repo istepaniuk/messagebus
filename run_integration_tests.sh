@@ -1,3 +1,4 @@
 #!/bin/sh
 
-PYTHONPATH=. mamba
+PYTHONPATH=. mamba  --format=documentation
+
