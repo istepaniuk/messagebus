@@ -2,13 +2,25 @@
 
 from messagebus import MessageBus
 from expects import *
+
 from threading import Thread, Event
 from time import sleep
 import uuid
+import os
+import logging
+import sys
 
 MSG_TIMEOUT = 3
+SUBSCRIBER_SETUP_GRACE_TIME = 1
 
-with description('messagebus'):
+logging.disable(sys.maxsize)
+
+with description('MessageBus'):
+    with before.all:
+        bus = MessageBus()
+        bus.subscribe('nothing.happened', lambda:None)
+        self._start_bus_in_background(bus)
+
     with before.each:
         self.bus = MessageBus(queue_prefix = 'testing')
         self.bus2 = MessageBus(queue_prefix = 'testing_publish')
@@ -18,7 +30,6 @@ with description('messagebus'):
         def callback(x): received_event.set()
         self.bus.subscribe('test.message', callback)
         self._start_bus_in_background(self.bus)
-
         self.bus2.publish('test.message',{})
 
         has_received = received_event.wait(MSG_TIMEOUT)
@@ -90,32 +101,36 @@ with description('messagebus'):
 
     with it('retries to process a message twice if an exception is thrown'):
         instance = str(uuid.uuid1())
+        received_count = { instance: 0 }
         received_event = Event()
-        received = { "count": 0 }
-        def callback(message):
-            if instance != message["instance"]:
-                return
-            received["count"] = received["count"] + 1
-            if received["count"] > 1:
-                received_event.set()
-            raise Exception('test_exception')
-        def start():
-            while(True):
+
+        def start_listening():
+            while True:
+                bus = MessageBus()
+                def callback(message):
+                    received_count[instance] += 1
+                    if received_count[instance] >= 2:
+                        received_event.set()
+
+                    raise Exception('test_exception')
+
+                bus.subscribe("test.message3.%s" % instance, callback)
+
                 try:
-                    self.bus = MessageBus()
-                    self.bus.subscribe('test.message3', callback)
-                    self.bus.start()
-                except Exception as e:
-                    if e.message != 'test_exception':
-                        raise
-        thread = Thread(target = start)
+                    bus.start()
+                except Exception:
+                    bus.stop()
+
+        thread = Thread(target = start_listening)
         thread.daemon = True
         thread.start()
 
-        MessageBus().publish('test.message3', {"instance": instance})
+        sleep(SUBSCRIBER_SETUP_GRACE_TIME)
 
-        received_event.wait(MSG_TIMEOUT)
-        expect(received["count"]).to(be(2))
+        MessageBus().publish("test.message3.%s" % instance, {})
+
+        has_received = received_event.wait(MSG_TIMEOUT)
+        expect(received_count[instance]).to(equal(2))
 
     with it('can subscribe to wildcard a pattern'):
         received1 = {}
@@ -182,12 +197,17 @@ with description('messagebus'):
     def _start_bus_in_background(self, bus):
         started = Event()
         bus.consumer.on_connection_setup_finished = lambda: started.set()
+
         def callback():
             bus.start()
+
         thread = Thread(target = callback)
         thread.daemon = True
         thread.start()
-        started.wait(2)
+
+        started_ok = started.wait(SUBSCRIBER_SETUP_GRACE_TIME)
+        if not started_ok:
+            raise Exception('Consumer took too long to set up')
 
     def _run_times_in_parallel(self, times, callback):
         threads = {}

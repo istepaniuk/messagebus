@@ -32,31 +32,41 @@ class Consumer:
         if len(self._subscriptions) == 0:
             pass
         params = pika.URLParameters(self.broker_url)
+
+        self._logger.info('connection create')
         self.connection = pika.SelectConnection(params, self._on_connected)
+
+        self._logger.info('connection created')
         self.connection.add_on_close_callback(self._on_connection_closed)
         try:
+
+            self._logger.info('ioloop starting')
             self.connection.ioloop.start()
         except KeyboardInterrupt:
-            print("KeyboardInterrupt. Adios!")
+            self._logger.info("KeyboardInterrupt. Adios!")
 
     def stop(self):
         self._closing = True
+        self._logger.info('connection CLOSING...')
         self.connection.close()
 
     def _on_connection_closed(self, a, b, c):
+        self._logger.info('connection CLOSED!')
         if not self._closing:
             raise Exception("Connection lost")
 
     def _on_channel_closed(self, channel, reply_code, reply_text):
+        self._logger.info('channel closed!')
         if not self._closing:
             raise IOError("Channel closed (%s) %s" % (reply_code, reply_text))
+        self.connection.close()
 
     def _on_connected(self, connection):
-        connection.channel(self._on_channel_opened)
+        self.channel = connection.channel(self._on_channel_opened)
         self.on_connection_setup_finished()
 
     def _on_channel_opened(self, new_channel):
-        self.channel = new_channel
+        #self.channel = new_channel
         self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
         self.channel.add_on_close_callback(self._on_channel_closed)
         self.channel.exchange_declare(self._on_dlx_declared, 'the_exchange.dead-letter', 'fanout', durable=True)
@@ -118,14 +128,16 @@ class Consumer:
                     channel.basic_ack(method.delivery_tag)
             except Exception:
                 should_requeue = not method.redelivered
+                self._logger.info("there was an exception and should_requeue:"+str(should_requeue))
                 if not subscription['transient_queue']:
                     channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
-                self.connection.close()
+                    channel.close()
                 if not should_requeue:
                     self._logger.exception(
                         "Unhandled exception in message subscription for '%s'",
                         method.routing_key,
                         extra=dict(subscription=subscription, body=body))
+                self._logger.info("now i will raise")
                 raise
         return handle_delivery
 
