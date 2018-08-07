@@ -96,6 +96,9 @@ class MessageBus:
     def start(self):
         self.consumer.start()
 
+    def stop(self):
+        self.consumer.stop()
+
 
 class MessageBusTimeoutError(Exception):
     pass
