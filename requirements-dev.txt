@@ -1,4 +1,4 @@
 -r requirements.txt
 
-mamba==0.8.1
+mamba==0.9.3
 expects==0.4.2
