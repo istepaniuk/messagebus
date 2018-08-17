@@ -5,6 +5,7 @@ python:
   - 3.4
   - 3.5
 
+# 3.7 is not supported on the travis matrix yet
 matrix:
   include:
     - python: 3.7
@@ -12,6 +13,8 @@ matrix:
       sudo: true
 
 before_install:
+  # rabbitmq is not present for 3.7 builds until travis fixes this
+  - sudo apt-get install rabbitmq-server || true
   - sudo pip install pathtools
 services:
   - rabbitmq
