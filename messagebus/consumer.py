@@ -34,30 +34,27 @@ class Consumer:
             pass
         params = pika.URLParameters(self.broker_url)
 
-        self._logger.info('connection create')
         self.connection = pika.SelectConnection(params, self._on_connected)
-
-        self._logger.info('connection created')
+        self._logger.debug('Connection created')
         self.connection.add_on_close_callback(self._on_connection_closed)
         try:
-
-            self._logger.info('ioloop starting')
+            self._logger.debug('IO Loop starting')
             self.connection.ioloop.start()
         except KeyboardInterrupt:
             self._logger.info("KeyboardInterrupt. Adios!")
 
     def stop(self):
         self._closing = True
-        self._logger.info('connection CLOSING...')
+        self._logger.debug('Consumer stopping')
         self.connection.close()
 
     def _on_connection_closed(self, a, b, c):
-        self._logger.info('connection CLOSED!')
+        self._logger.debug('Connection closed')
         if not self._closing:
             raise Exception("Connection lost")
 
     def _on_channel_closed(self, channel, reply_code, reply_text):
-        self._logger.info('channel closed!')
+        self._logger.debug('Channel closed')
         if not self._closing:
             raise IOError("Channel closed (%s) %s" % (reply_code, reply_text))
         self.connection.close()
@@ -129,16 +126,14 @@ class Consumer:
                     channel.basic_ack(method.delivery_tag)
             except Exception:
                 should_requeue = not method.redelivered
-                self._logger.info("there was an exception and should_requeue:"+str(should_requeue))
                 if not subscription['transient_queue']:
                     channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
                     channel.close()
                 if not should_requeue:
                     self._logger.exception(
-                        "Unhandled exception in message subscription for '%s'",
+                        "Unhandled exception in message subscription for '%s' that will not be requeued",
                         method.routing_key,
                         extra=dict(subscription=subscription, body=body))
-                self._logger.info("now i will raise")
                 raise
         return handle_delivery
 
