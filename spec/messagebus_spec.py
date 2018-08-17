@@ -96,36 +96,21 @@ with description('MessageBus'):
 
     with it('retries to process a message twice if an exception is thrown'):
         instance = str(uuid.uuid1())
-        received_count = { instance: 0 }
+        received = { 'count': 0 }
         received_event = Event()
 
-        def start_listening():
-            while True:
-                bus = MessageBus()
-                def callback(message):
-                    received_count[instance] += 1
-                    if received_count[instance] >= 2:
-                        received_event.set()
+        def callback(message):
+            received['count'] += 1
+            if received['count'] >= 2:
+                received_event.set()
+            raise Exception('test_exception')
 
-                    raise Exception('test_exception')
+        self._subscribe_in_the_background("test.message3.%s" % instance, callback)
 
-                bus.subscribe("test.message3.%s" % instance, callback)
-
-                try:
-                    bus.start()
-                except Exception:
-                    bus.stop()
-
-        thread = Thread(target = start_listening)
-        thread.daemon = True
-        thread.start()
-
-        sleep(SUBSCRIBER_SETUP_GRACE_TIME)
-
-        MessageBus().publish("test.message3.%s" % instance, {})
+        self.bus2.publish("test.message3.%s" % instance, {})
 
         has_received = received_event.wait(MSG_TIMEOUT)
-        expect(received_count[instance]).to(equal(2))
+        expect(received['count']).to(equal(2))
 
     with it('can subscribe to wildcard a pattern'):
         received1 = {}
@@ -193,16 +178,48 @@ with description('MessageBus'):
         started = Event()
         bus.consumer.on_connection_setup_finished = lambda: started.set()
 
-        def callback():
-            bus.start()
+        def start_bus():
+                try:
+                    bus.start()
+                except Exception:
+                    bus.stop()
 
-        thread = Thread(target = callback)
+        thread = Thread(target = start_bus)
         thread.daemon = True
         thread.start()
 
         started_ok = started.wait(SUBSCRIBER_SETUP_GRACE_TIME)
         if not started_ok:
             raise Exception('Consumer took too long to set up')
+
+
+    def _subscribe_in_the_background(self, message, callback):
+        """Creates a new MessageBus in a daemon thread and sets up a
+        subscription. The function will only return once the subscription is
+        ready to process messages so it's safe to publish immediately afterwards.
+        """
+        started = Event()
+
+        def start_bus():
+            while True:
+                bus = MessageBus()
+                bus.consumer.on_connection_setup_finished = lambda: started.set()
+                bus.subscribe(message, callback)
+
+                try:
+                    bus.start()
+                except Exception:
+                    bus.stop()
+
+        thread = Thread(target = start_bus)
+        thread.daemon = True
+        thread.start()
+
+        started_ok = started.wait(SUBSCRIBER_SETUP_GRACE_TIME)
+
+        if not started_ok:
+            raise Exception('Consumer took too long to set up')
+
 
     def _run_times_in_parallel(self, times, callback):
         threads = {}
