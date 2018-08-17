@@ -16,11 +16,6 @@ SUBSCRIBER_SETUP_GRACE_TIME = 1
 logging.disable(sys.maxsize)
 
 with description('MessageBus'):
-    with before.all:
-        bus = MessageBus()
-        bus.subscribe('nothing.happened', lambda:None)
-        self._start_bus_in_background(bus)
-
     with before.each:
         self.bus = MessageBus(queue_prefix = 'testing')
         self.bus2 = MessageBus(queue_prefix = 'testing_publish')
