@@ -7,15 +7,16 @@ import uuid
 import logging
 
 class Consumer:
-    def __init__(self, broker_url, queue_prefix=None):
+    def __init__(self, broker_url, queue_prefix=None, exchange=''):
         self._logger = logging.getLogger(__name__)
         self.queue_prefix = queue_prefix
-        self.exchange = 'the_exchange'
+        self.exchange = exchange
         self.broker_url = broker_url
         self._subscriptions = []
         self._bound_count = 0
         self._closing = False
         self.on_connection_setup_finished = lambda: None
+        self.dead_letter_exchange = "%s-dlx" % exchange
 
     def subscribe(self, pattern, callback, transient_queue=False):
         queue_name = self._get_queue_name(pattern)
@@ -62,15 +63,14 @@ class Consumer:
         self.connection.close()
 
     def _on_connected(self, connection):
-        self.channel = connection.channel(self._on_channel_opened)
-        self.on_connection_setup_finished()
+        connection.channel(self._on_channel_opened)
 
     def _on_channel_opened(self, new_channel):
-        #self.channel = new_channel
-        self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
-        self.channel.add_on_close_callback(self._on_channel_closed)
-        self.channel.exchange_declare(self._on_dlx_declared, 'the_exchange.dead-letter', 'fanout', durable=True)
-        self.channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic', durable=True)
+        self.channel = new_channel
+        new_channel.basic_qos(prefetch_size=0, prefetch_count=1)
+        new_channel.add_on_close_callback(self._on_channel_closed)
+        new_channel.exchange_declare(self._on_dlx_declared, self.dead_letter_exchange, 'fanout', durable=True)
+        new_channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic', durable=True)
 
     def _on_dlx_declared(self, unused_frame):
         self.channel.queue_declare(queue='dead-letter', durable=True,
@@ -78,11 +78,11 @@ class Consumer:
 
     def _on_dlq_declared(self, frame):
         self.channel.queue_bind(lambda x: x, queue = 'dead-letter',
-            exchange = 'the_exchange.dead-letter' ,routing_key = '')
+            exchange = self.dead_letter_exchange  ,routing_key = '')
 
     def _on_exchange_declared(self, unused_frame):
         for subscription in self._subscriptions:
-            arguments = { 'x-dead-letter-exchange' : 'the_exchange.dead-letter' }
+            arguments = { 'x-dead-letter-exchange' : self.dead_letter_exchange }
             self.channel.queue_declare(queue=subscription["queue_name"],
                 durable=False if subscription['transient_queue'] else True,
                 arguments = arguments,
@@ -114,6 +114,7 @@ class Consumer:
                 self.channel.basic_consume(self._get_handle_delivery_callback(subscription),
                     queue = subscription['queue_name'],
                     no_ack= True if subscription['transient_queue'] else False)
+            self.on_connection_setup_finished()
 
     def _get_handle_delivery_callback(self, subscription):
         def handle_delivery(channel, method, properties, body):
