@@ -14,12 +14,15 @@ except ImportError:
     from messagebus.consumer import Consumer
 
 class MessageBus:
-    RABBITMQ_DEFAULT_EXCHANGE = 'the_exchange'
+    def __init__(
+        self, broker_url='amqp://localhost',
+        queue_prefix=None,
+        exchange='messagebus'):
 
-    def __init__(self, broker_url='amqp://localhost', queue_prefix=None):
         self.broker_url = broker_url
-        self.consumer = Consumer(self.broker_url, queue_prefix)
+        self.consumer = Consumer(self.broker_url, queue_prefix, exchange)
         self._queue_prefix = queue_prefix
+        self.exchange = exchange
 
     def publish(self, message, payload={}):
         self._publish(message, payload)
@@ -34,7 +37,7 @@ class MessageBus:
             properties = pika.BasicProperties(correlation_id=correlation_id)
 
         channel.basic_publish(
-            exchange=self.RABBITMQ_DEFAULT_EXCHANGE,
+            exchange=self.exchange,
             routing_key=message,
             body=body,
             properties=properties)
@@ -66,7 +69,7 @@ class MessageBus:
         def on_consumer_ready():
             consumer_ready.set()
 
-        consumer = Consumer(self.broker_url, self._queue_prefix)
+        consumer = Consumer(self.broker_url, self._queue_prefix, self.exchange)
         consumer.on_connection_setup_finished = on_consumer_ready
         response = {}
         response_received = Event()
