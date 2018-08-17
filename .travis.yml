@@ -4,10 +4,12 @@ python:
   - "2.7"
   - "3.4"
   - "3.5"
+  - "3.7"
+
 before_install:
   - sudo pip install pathtools
 services:
   - rabbitmq
 install:
   - pip install -r requirements-dev.txt
-script: ./run_integration_tests.sh > /dev/null ; ./run_integration_tests.sh
+script: ./run_integration_tests.sh
