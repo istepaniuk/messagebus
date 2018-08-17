@@ -1,2 +1,2 @@
-git+https://github.com/bwind/pika.git@0.10.0-py37-compat
+pika==0.12.0
 pyrabbit==1.1.0
