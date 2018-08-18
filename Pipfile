@@ -1,0 +1,12 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+expects = ">=0.8.0"
+mamba = ">=0.8.0"
+
+[packages]
+pika = "==0.12.0"
+pyrabbit = "==1.1.0"

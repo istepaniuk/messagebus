@@ -15,9 +15,10 @@ matrix:
 before_install:
   # rabbitmq is not present for 3.7 builds until travis fixes this
   - sudo apt-get install rabbitmq-server || true
-  - sudo pip install pathtools
 services:
   - rabbitmq
 install:
-  - pip install -r requirements-dev.txt
-script: ./run_integration_tests.sh
+  - sudo pip install -U pipenv
+  - pipenv install --dev
+script:
+  - pipenv run ./run_integration_tests.sh
