@@ -31,6 +31,7 @@ bus.start() # (will block forever)
 ```
 
 
+## The MessageBus class
 ```python
 class MessageBus:
     def __init__(self, broker_url='amqp://localhost', queue_prefix=None, exchange='messagebus'):
