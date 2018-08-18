@@ -116,7 +116,6 @@ with description('MessageBus'):
                 try:
                     bus.start()
                 except Exception as e:
-                    bus.stop()
                     if str(e) != 'test!':
                         raise
 
