@@ -17,6 +17,7 @@ class Consumer:
         self._closing = False
         self.on_connection_setup_finished = lambda: None
         self.dead_letter_exchange = "%s-dlx" % exchange
+        self._handler_exception = None
 
     def subscribe(self, pattern, callback, transient_queue=False):
         queue_name = self._get_queue_name(pattern)
@@ -52,6 +53,8 @@ class Consumer:
         self._logger.debug('Connection closed')
         if not self._closing:
             raise Exception("Connection lost")
+        if self._handler_exception:
+            raise self._handler_exception
 
     def _on_channel_closed(self, channel, reply_code, reply_text):
         self._logger.debug('Channel closed')
@@ -124,17 +127,24 @@ class Consumer:
 
                 if not subscription['transient_queue']:
                     channel.basic_ack(method.delivery_tag)
-            except Exception:
+            except Exception as e:
                 should_requeue = not method.redelivered
                 if not subscription['transient_queue']:
                     channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
-                    channel.close()
+                    self.stop()
+
                 if not should_requeue:
                     self._logger.exception(
                         "Unhandled exception in message subscription for '%s' that will not be requeued",
                         method.routing_key,
                         extra=dict(subscription=subscription, body=body))
-                raise
+
+                # we would like this exception to bubble up so we can let the
+                # whole subscriber crash, but pika needs this thread alive to
+                # finalize the connection. It'd otherwise not propperly NACK.
+                # instead of raising now, we do that later:
+                self._handler_exception = e
+
         return handle_delivery
 
     def _invoke_callback(self, callback, payload, routing_key, properties):
