@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='messagebus',
-    version="1.0.4",
+    version="1.0.5",
     author='Ivan Stepaniuk',
     author_email='istepaniuk+mb@gmail.com',
     description='Wrapper arround Pika to publish and subscribe domain events',
