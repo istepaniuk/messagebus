@@ -30,16 +30,6 @@ bus.subscribe('some.message', the_callback)
 bus.start() # (will block forever)
 ```
 
-
-## The MessageBus class
-```python
-class MessageBus:
-    def __init__(self, broker_url='amqp://localhost', queue_prefix=None, exchange='messagebus'):
-    def publish(self, message, payload={})
-    def subscribe(self, message, callback)
-    def start(self)
-```
-
 Additionally, there are two methods to implement synchronous/RPC-like calls over the bus.
 ```python
     def subscribe_and_publish_response(self, message, callback)
