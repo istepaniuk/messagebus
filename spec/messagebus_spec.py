@@ -11,7 +11,7 @@ import logging
 import sys
 
 MSG_TIMEOUT = 3
-SUBSCRIBER_SETUP_GRACE_TIME = 1
+SUBSCRIBER_SETUP_GRACE_TIME = 3
 
 logging.disable(sys.maxsize)
 
