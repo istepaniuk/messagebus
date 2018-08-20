@@ -1,10 +1,10 @@
 import pika
 import json
-import os
 import socket
 import inspect
 import uuid
 import logging
+
 
 class Consumer:
     def __init__(self, broker_url, queue_prefix=None, exchange=''):
@@ -69,23 +69,30 @@ class Consumer:
         self.channel = new_channel
         new_channel.basic_qos(prefetch_size=0, prefetch_count=1)
         new_channel.add_on_close_callback(self._on_channel_closed)
-        new_channel.exchange_declare(self._on_dlx_declared, self.dead_letter_exchange, 'fanout', durable=True)
-        new_channel.exchange_declare(self._on_exchange_declared, self.exchange, 'topic', durable=True)
+        new_channel.exchange_declare(self._on_dlx_declared,
+                                     self.dead_letter_exchange, 'fanout',
+                                     durable=True)
+        new_channel.exchange_declare(self._on_exchange_declared, self.exchange,
+                                     'topic', durable=True)
 
     def _on_dlx_declared(self, unused_frame):
         self.channel.queue_declare(queue='dead-letter', durable=True,
-            exclusive = False, auto_delete = False, callback=self._on_dlq_declared)
+                                   exclusive=False,
+                                   auto_delete=False,
+                                   callback=self._on_dlq_declared)
 
     def _on_dlq_declared(self, frame):
-        self.channel.queue_bind(lambda x: x, queue = 'dead-letter',
-            exchange = self.dead_letter_exchange  ,routing_key = '')
+        self.channel.queue_bind(lambda x: x, queue='dead-letter',
+                                exchange=self.dead_letter_exchange,
+                                routing_key='')
 
     def _on_exchange_declared(self, unused_frame):
         for subscription in self._subscriptions:
-            arguments = { 'x-dead-letter-exchange' : self.dead_letter_exchange }
-            self.channel.queue_declare(queue=subscription["queue_name"],
+            arguments = {'x-dead-letter-exchange': self.dead_letter_exchange}
+            self.channel.queue_declare(
+                queue=subscription["queue_name"],
                 durable=False if subscription['transient_queue'] else True,
-                arguments = arguments,
+                arguments=arguments,
                 exclusive=False,
                 auto_delete=True if subscription['transient_queue'] else False,
                 callback=self._on_queue_declared)
@@ -99,7 +106,7 @@ class Consumer:
         queue_name = frame.method.queue
         subscription = self._get_subscription_by_queue_name(queue_name)
         self.channel.queue_bind(self._on_bind_ok, queue_name,
-            self.exchange, subscription['pattern'])
+                                self.exchange, subscription['pattern'])
 
     def _get_subscription_by_queue_name(self, queue_name):
         for subscription in self._subscriptions:
@@ -111,9 +118,10 @@ class Consumer:
         self._bound_count = self._bound_count + 1
         if self._bound_count == len(self._subscriptions):
             for subscription in self._subscriptions:
-                self.channel.basic_consume(self._get_handle_delivery_callback(subscription),
-                    queue = subscription['queue_name'],
-                    no_ack= True if subscription['transient_queue'] else False)
+                self.channel.basic_consume(
+                    self._get_handle_delivery_callback(subscription),
+                    queue=subscription['queue_name'],
+                    no_ack=True if subscription['transient_queue'] else False)
             self.on_connection_setup_finished()
 
     def _get_handle_delivery_callback(self, subscription):
@@ -130,12 +138,14 @@ class Consumer:
             except Exception as e:
                 should_requeue = not method.redelivered
                 if not subscription['transient_queue']:
-                    channel.basic_nack(delivery_tag = method.delivery_tag, requeue = should_requeue)
+                    channel.basic_nack(delivery_tag=method.delivery_tag,
+                                       requeue=should_requeue)
                     self.stop()
 
                 if not should_requeue:
                     self._logger.exception(
-                        "Unhandled exception in message subscription for '%s' that will not be requeued",
+                        "Unhandled exception in message subscription for '%s' "
+                        "that will not be requeued",
                         method.routing_key,
                         extra=dict(subscription=subscription, body=body))
 

@@ -6,14 +6,14 @@ import settings
 import json
 import argparse
 import sys
-import uuid
 
 # necessary because pyrabbit prints crap to the output
 # pull-requested a change:
 # https://github.com/istepaniuk/pyrabbit/commit/41c9a11245475729f114ecc3dcfa20a4f5409545
 import redirect
 
-parser = argparse.ArgumentParser(description='Publish messages from stdin, one by line, to the exchange.')
+parser = argparse.ArgumentParser(description='Publish messages from stdin, one'
+                                             ' by line, to the exchange.')
 args = parser.parse_args()
 parsed_url = urlparse.urlparse(settings.RABBITMQ_BROKER_URL)
 
@@ -29,5 +29,5 @@ vhost = '/'
 for message in messages:
     payload = json.dumps(message['payload'], ensure_ascii=False)
     with redirect.RedirectStdStreamsToDevNull():
-        client.publish(vhost, settings.EXCHANGE_NAME, message['routing_key'], payload)
-
+        client.publish(vhost, settings.EXCHANGE_NAME, message['routing_key'],
+                       payload)

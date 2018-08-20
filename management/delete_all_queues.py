@@ -3,14 +3,13 @@
 import pyrabbit
 from urllib.parse import urlparse
 import settings
-import json
 import argparse
-import os
-import sys
 
-parser = argparse.ArgumentParser(description='WARNING: DELETES every single queue')
-parser.add_argument('yes', metavar='YES', type=str,
-                   help='Param to make sure this does not get run by accident')
+parser = argparse.ArgumentParser(
+    description='WARNING: DELETES every single queue')
+parser.add_argument(
+    'yes', metavar='YES', type=str,
+    help='Param to make sure this does not get run by accident')
 args = parser.parse_args()
 
 parsed_url = urlparse(settings.RABBITMQ_BROKER_URL)

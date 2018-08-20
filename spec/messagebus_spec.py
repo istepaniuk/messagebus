@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from expects import (
+    be_false,
+    equal,
+    expect,
+    have_key,
+)
+from mamba import before, description, it
 from messagebus import MessageBus
-from expects import *
-
 from threading import Thread, Event
-from time import sleep
 import uuid
-import os
 import logging
 import sys
 
@@ -15,13 +18,13 @@ SUBSCRIBER_SETUP_GRACE_TIME = 3
 
 logging.disable(sys.maxsize)
 
-with description('MessageBus'):
+with description('MessageBus') as self:
     with before.each:
-        self.bus = MessageBus(queue_prefix = 'testing')
+        self.bus = MessageBus(queue_prefix='testing')
 
     with it('can publish and subscribe to a message'):
         received_event = Event()
-        received = {'routing_key':None}
+        received = {'routing_key': None}
 
         def callback(message, **kwargs):
             received['routing_key'] = kwargs['routing_key']
@@ -39,7 +42,8 @@ with description('MessageBus'):
 
     with it('does not receive a message if not subscribed to it'):
         received_event = Event()
-        self._subscribe_in_the_background('test.some_test_message', lambda: received_event.set())
+        self._subscribe_in_the_background('test.some_test_message',
+                                          lambda: received_event.set())
 
         self.bus.publish('test.some_other_different_test_message')
 
@@ -48,7 +52,7 @@ with description('MessageBus'):
 
     with it('retries to process a message twice if an exception is thrown'):
         instance = str(uuid.uuid1())
-        received = { 'count': 0 }
+        received = {'count': 0}
         received_event = Event()
 
         def callback(message):
@@ -57,7 +61,8 @@ with description('MessageBus'):
                 received_event.set()
             raise Exception('test!')
 
-        self._subscribe_in_the_background("test.message3.%s" % instance, callback)
+        self._subscribe_in_the_background("test.message3.%s" % instance,
+                                          callback)
 
         self.bus.publish("test.message3.%s" % instance, {})
 
@@ -89,25 +94,29 @@ with description('MessageBus'):
         def echoing_callback(message):
             return message
 
-        self._subscribe_in_the_background(message_type, echoing_callback, responds=True)
+        self._subscribe_in_the_background(message_type, echoing_callback,
+                                          responds=True)
 
-        bus = MessageBus(queue_prefix = 'testing2')
-        received = bus.publish_and_get_response(message_type, {'proof': instance })
+        bus = MessageBus(queue_prefix='testing2')
+        received = bus.publish_and_get_response(message_type,
+                                                {'proof': instance})
 
         expect(received['proof']).to(equal(instance))
 
     def _subscribe_in_the_background(self, message, callback, responds=False):
         """Creates a new MessageBus in a daemon thread and sets up a
         subscription. This function will only return once the subscription is
-        ready to process messages so it's safe to publish immediately afterwards.
+        ready to process messages so it's safe to publish immediately
+        afterwards.
         """
         started = Event()
-        queue_prefix="testing-%s" % str(uuid.uuid1())
+        queue_prefix = "testing-%s" % str(uuid.uuid1())
 
         def start_bus():
             while True:
                 bus = MessageBus(queue_prefix=queue_prefix)
-                bus.consumer.on_connection_setup_finished = lambda: started.set()
+                bus.consumer.on_connection_setup_finished = \
+                    lambda: started.set()
                 if responds:
                     bus.subscribe_and_publish_response(message, callback)
                 else:
@@ -119,7 +128,7 @@ with description('MessageBus'):
                     if str(e) != 'test!':
                         raise
 
-        thread = Thread(target = start_bus)
+        thread = Thread(target=start_bus)
         thread.daemon = True
         thread.start()
 
@@ -127,4 +136,3 @@ with description('MessageBus'):
 
         if not started_ok:
             raise Exception('Consumer took too long to set up')
-
