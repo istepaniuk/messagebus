@@ -1,1 +1,1 @@
-from messagebus import *
+from messagebus import *  # noqa
