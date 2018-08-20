@@ -7,13 +7,14 @@ Wrapper arround Pika to publish and subscribe to messages on RabbitMQ
 
 ## Why?
 Pika is a good AMQP library, but it exposes AMQP for any purpose.
-This library uses AMQP to implement this very simple interface, based on many assumptions about the way we use AMQP to implement the [Message Bus pattern](https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageBus.html), [Publish-Subscribe Channel](https://www.enterpriseintegrationpatterns.com/patterns/messaging/PublishSubscribeChannel.html) and [Competing Consumers](https://www.enterpriseintegrationpatterns.com/patterns/messaging/CompetingConsumers.html)
+This library uses AMQP to implement this very simple interface, based on many assumptions about the way we use AMQP to implement the [Message Bus pattern](https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageBus.html), [Publish-Subscribe Channel](https://www.enterpriseintegrationpatterns.com/patterns/messaging/PublishSubscribeChannel.html).
 
 ### How does it work
 * Publishers and subscribers are bound through one single exchange.
 * Queues are named after the message type by default.
 * Queues are persistent, subscribers will use the same ones on restart.
-* Two subscriber instances will bind to the same queue if no queue prefix is specified (load sharing).
+* Two subscriber instances will bind to the same queue if no queue prefix is specified ([Competing Consumers](https://www.enterpriseintegrationpatterns.com/patterns/messaging/CompetingConsumers.html)
+).
 * When your handler returns, messages are ACKed, if it throws an error, messages are rejected and requeued once.
 * If a message fails to be handled for a second time, it will be rejected and sent to a dead-letter queue for you to deal with that.
 * RabbitMQ requires no previous configuration, the queues are created and bound every time a consumer is started. These operations are idempotent so if your queue was already there, it does nothing.
